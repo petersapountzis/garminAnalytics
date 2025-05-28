@@ -1,0 +1,79 @@
+version: "3.9"
+
+services:
+  # 1️⃣ Garmin collector (black box you don't maintain)
+  garmin-fetch-data:
+    image: thisisarpanghosh/garmin-fetch-data:latest # pin to a tag later
+    container_name: garmin-fetch-data
+    restart: unless-stopped
+    depends_on: [influxdb]
+    volumes:
+      - ./garminconnect-tokens:/home/appuser/.garminconnect
+    environment:
+      - INFLUXDB_HOST=influxdb
+      - INFLUXDB_PORT=8086
+      - INFLUXDB_USERNAME=${INFLUX_USER}
+      - INFLUXDB_PASSWORD=${INFLUX_PW}
+      - INFLUXDB_DATABASE=GarminStats # default bucket inside Influx
+      - GARMINCONNECT_EMAIL=${GC_EMAIL}
+      - GARMINCONNECT_BASE64_PASSWORD=${GC_PWD_B64}
+      # OPTIONAL fetch tailoring:
+      # - FETCH_SELECTION=daily_avg,sleep,activity,hrv
+
+  # 2️⃣ Landing zone for raw measurements
+  influxdb:
+    image: influxdb:1.11
+    container_name: influxdb
+    restart: unless-stopped
+    expose: ["8086"]
+    environment:
+      - INFLUXDB_DB=GarminStats
+      - INFLUXDB_USER=${INFLUX_USER}
+      - INFLUXDB_USER_PASSWORD=${INFLUX_PW}
+    volumes:
+      - influxdb_data:/var/lib/influxdb
+
+  # 3️⃣ Canonical warehouse (SQL & time-series)
+  timescaledb:
+    image: timescale/timescaledb:latest-pg15
+    container_name: timescaledb
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${PG_DB}
+      POSTGRES_USER: ${PG_USER}
+      POSTGRES_PASSWORD: ${PG_PW}
+    ports: ["5432:5432"] # local only
+    volumes:
+      - tsdata:/var/lib/postgresql/data
+
+  # 4️⃣ ETL bridge: Influx ➜ Timescale
+  etl:
+    build: ./etl
+    restart: unless-stopped
+    depends_on: [influxdb, timescaledb]
+    environment:
+      INFLUX_HOST: influxdb
+      INFLUX_PORT: 8086
+      INFLUX_DB: GarminStats
+      INFLUX_USER: ${INFLUX_USER}
+      INFLUX_PW: ${INFLUX_PW}
+
+      PG_USER: ${PG_USER}
+      PG_PW: ${PG_PW}
+      PG_DB: ${PG_DB}
+      PG_HOST: timescaledb
+      LOOP_SECONDS: 300
+
+  api:
+    build: ./backend
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    ports: ["8000:8000"]
+    environment:
+      PG_USER: ${PG_USER}
+      PG_PW: ${PG_PW}
+      PG_DB: ${PG_DB}
+    depends_on: [timescaledb]
+
+volumes:
+  influxdb_data:
+  tsdata:

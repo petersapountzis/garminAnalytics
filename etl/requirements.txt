@@ -1,0 +1,5 @@
+pandas
+psycopg[binary]
+influxdb==5.3.1          # ← the official client for InfluxDB 1.x
+tqdm
+sqlalchemy==2.0.* 

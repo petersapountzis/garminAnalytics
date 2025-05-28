@@ -1,0 +1,6 @@
+# secrets & runtime artefacts
+.env
+garminconnect-tokens/
+influxdb_data/
+tsdata/
+__pycache__/
