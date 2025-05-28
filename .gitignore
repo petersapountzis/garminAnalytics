@@ -1,3 +1,18 @@
+# ── Global ─────────────────────────────────────────
+.DS_Store
+.vscode/
+
+# ── Backend / Docker ───────────────────────────────
+backend/.venv/
+etl/__pycache__/
+
+# ── Front-end (garmin-ui) ──────────────────────────
+garmin-ui/node_modules/
+garmin-ui/.next/
+garmin-ui/.next-turbo/
+garmin-ui/dist/
+garmin-ui/.env.local
+
 # secrets & runtime artefacts
 .env
 garminconnect-tokens/
